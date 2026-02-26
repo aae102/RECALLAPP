@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RECALL — Smart Flashcards (PDF/Excel + Images + Cloze/MC Switch)</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  </script>
+
+  <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.3/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0a0b0f; --panel:#111318; --panel2:#181c24; --border:#1e2330;
+      --text:#e2e8f0; --muted:#94a3b8; --muted2:#4a5568;
+      --purple:#818cf8; --green:#4ade80; --orange:#fb923c; --red:#f87171; --cyan:#22d3ee;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans','Helvetica Neue',sans-serif}
+    button{cursor:pointer}
+    button:hover{opacity:.9}
+    button:active{transform:scale(.98)}
+    input,textarea{color:var(--text)}
+    input:focus,textarea:focus{outline:none;border-color:var(--purple)!important;box-shadow:0 0 0 3px rgba(129,140,248,.07)}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:var(--panel);border-right:1px solid var(--border);padding:22px 14px;display:flex;flex-direction:column;gap:22px;flex-shrink:0}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo .mark{color:var(--purple);font-size:22px}
+    .logo .word{font-weight:800;letter-spacing:.15em;font-size:14px}
+    .nav{display:flex;flex-direction:column;gap:6px}
+    .nav button{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;border:none;background:transparent;color:var(--muted);font-size:13px;text-align:left}
+    .nav button.active{background:rgba(129,140,248,.13);color:var(--purple)}
+
+    .main{flex:1;padding:28px 34px;overflow:auto}
+    .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+    .greeting{font-size:26px;font-weight:700;font-family:'DM Serif Display',Georgia,serif}
+    .date{font-size:13px;color:var(--muted);margin-top:4px}
+    .tag{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;font-size:13px;border:1px solid rgba(255,255,255,.08)}
+    .tag.orange{color:var(--orange);background:rgba(251,146,60,.13);border-color:rgba(251,146,60,.25)}
+    .tag.green{color:var(--green);background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.25)}
+    .btnOutline{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:9px;font-size:13px}
+    .btnSmall{padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600}
+    .btnDanger{color:var(--red);border-color:rgba(248,113,113,.28)}
+    .btnPrimary{background:var(--purple);border:none;border-radius:10px;color:#fff;font-weight:700;padding:10px 18px}
+    .section{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--muted2);text-transform:uppercase;margin:22px 0 12px}
+
+    .progressCard{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:8px}
+    .track{height:7px;background:var(--panel2);border-radius:99px;overflow:hidden}
+    .fill{height:100%;width:0%;background:linear-gradient(90deg,var(--purple),#a78bfa);border-radius:99px;transition:width .35s}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+    .cardTop{display:flex;justify-content:space-between;align-items:flex-start}
+    .cardName{font-size:15px;font-weight:700}
+    .pct{font-size:16px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:var(--purple)}
+    .meta{font-size:12px;color:var(--muted);margin-top:4px}
+    .bar{height:4px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:8px 0}
+    .bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:99px;transition:width .35s}
+
+    .bigBtn{width:100%;padding:14px 0;background:linear-gradient(135deg,var(--purple),#a78bfa);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;margin-top:12px}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;flex:1;min-width:120px}
+    .stat .v{font-size:22px;font-weight:800;font-family:'IBM Plex Mono',monospace}
+    .stat .l{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.07em}
+
+    .box{border-radius:11px;padding:12px 14px;font-size:13px;border:1px solid var(--border);background:var(--panel)}
+    .box.err{border-color:rgba(248,113,113,.25);background:rgba(220,38,38,.13);color:var(--red)}
+    .box.ok{border-color:rgba(74,222,128,.25);background:rgba(22,163,74,.13);color:var(--green)}
+    .note{font-size:11px;color:var(--muted2);margin-top:6px}
+
+    .input,.textarea{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 14px;font-size:14px}
+    .textarea{resize:vertical;font-size:13px}
+    .modeRow{display:flex;gap:8px}
+    .modeBtn{flex:1;padding:9px 12px;background:var(--panel);border:1px solid var(--border);border-radius:11px;color:var(--muted);font-size:13px;font-weight:800}
+    .modeBtn.active{background:rgba(129,140,248,.10);border-color:rgba(129,140,248,.27);color:var(--purple)}
+    .upload{background:var(--panel);border:1px dashed var(--border);border-radius:12px;padding:26px 18px;text-align:center;cursor:pointer;font-size:14px}
+
+    /* Manage */
+    .split{display:flex;gap:18px;min-height:70vh}
+    .left{width:240px;display:flex;flex-direction:column;gap:8px}
+    .deckItem{padding:12px 14px;border-radius:11px;cursor:pointer;border:1px solid var(--border);background:var(--panel)}
+    .deckItem.active{background:rgba(129,140,248,.10);border-color:rgba(129,140,248,.27)}
+    .right{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px;overflow:auto}
+    .filters{display:flex;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+    .pill{padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:12px;font-weight:800}
+    .pill.active{background:rgba(129,140,248,.10);border-color:rgba(129,140,248,.27);color:var(--purple)}
+    .list{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow:auto}
+    .rowCard{display:flex;gap:10px;padding:10px 11px;background:var(--panel2);border-radius:11px;border:1px solid var(--border);align-items:flex-start}
+    .mono{font-family:'IBM Plex Mono',monospace}
+    .ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tiny{font-size:11px;color:var(--muted2)}
+    .imgThumb{max-width:78px;max-height:52px;border-radius:8px;border:1px solid rgba(255,255,255,.10);object-fit:cover}
+
+    /* Study */
+    .studyWrap{max-width:780px;margin:0 auto;padding:22px 24px;width:100%;display:flex;flex-direction:column;min-height:100vh}
+    .studyTop{display:flex;align-items:center;gap:12px;margin-bottom:26px;flex-wrap:wrap}
+    .progressZone{flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .reqBadge{font-size:12px;color:var(--orange);background:rgba(217,119,6,.10);border:1px solid rgba(251,146,60,.25);padding:3px 10px;border-radius:999px;font-weight:800}
+    .cardZone{flex:1;display:flex;flex-direction:column;gap:14px}
+    .clozeTag{align-self:flex-start;background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.25);color:var(--orange);
+      padding:6px 12px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:.05em}
+    .mcTag{align-self:flex-start;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);color:var(--cyan);
+      padding:6px 12px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:.05em}
+    .flash{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:34px 26px;min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;box-shadow:0 0 50px rgba(129,140,248,.10)}
+    .q{font-size:20px;line-height:1.55;text-align:center;font-weight:600;font-family:'DM Serif Display',Georgia,serif}
+    .imgLarge{max-width:100%;max-height:240px;border-radius:12px;border:1px solid rgba(255,255,255,.10);object-fit:contain}
+    .ansInput{background:var(--panel2);border:2px solid var(--border);border-radius:12px;padding:14px 16px;font-size:16px;font-family:'IBM Plex Mono',monospace;width:100%}
+    .hint{font-size:12px;color:var(--muted2)}
+    .reveal{display:flex;flex-direction:column;gap:12px}
+    .banner{padding:10px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.1);font-weight:900;font-size:15px;text-align:center}
+    .banner.correct{border-color:rgba(74,222,128,.35);background:rgba(22,163,74,.20);color:var(--green)}
+    .banner.close{border-color:rgba(251,146,60,.35);background:rgba(217,119,6,.18);color:var(--orange)}
+    .banner.wrong{border-color:rgba(248,113,113,.35);background:rgba(220,38,38,.20);color:var(--red)}
+    .compare{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+    .ansRow{display:flex;gap:10px;font-size:14px;align-items:flex-start}
+    .ansLabel{color:var(--muted2);min-width:70px;flex-shrink:0;font-weight:900}
+    .rating{display:flex;gap:8px;flex-wrap:wrap}
+    .rBtn{flex:1;min-width:120px;padding:12px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent;font-weight:900;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+    .rBtn span:last-child{opacity:.55;font-size:10px}
+    .studyFoot{display:flex;gap:18px;justify-content:center;padding:14px 0;font-size:13px;border-top:1px solid var(--border);margin-top:14px;flex-wrap:wrap}
+    .mcOptions{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
+    .mcBtn{width:100%;text-align:left;padding:12px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-weight:800}
+    .mcBtn:hover{border-color:rgba(129,140,248,.35)}
+    .done{max-width:480px;margin:auto;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:40px 34px;text-align:center}
+    .done .ic{font-size:42px;color:var(--purple);margin-bottom:14px}
+    .done .t{font-size:24px;font-weight:800;font-family:'DM Serif Display',Georgia,serif;margin-bottom:8px}
+    .done .s{color:var(--muted);margin-bottom:22px;line-height:1.6;font-size:14px}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    /******************************************************************
+     * STORAGE
+     ******************************************************************/
+    const STORAGE_KEY = "recall_full_v1";
+    const INIT = { decks:{}, stats:{} };
+
+    let DATA = loadData();
+    let SCREEN = "dashboard"; // dashboard | study | manage | add
+
+    function loadData(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : structuredClone(INIT);
+      }catch{
+        return structuredClone(INIT);
+      }
+    }
+    function saveData(d){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }catch{}
+    }
+    function updateData(mutator){
+      const next = structuredClone(DATA);
+      mutator(next);
+      DATA = next;
+      saveData(DATA);
+      render();
+    }
+
+    function setScreen(s){
+      SCREEN = s;
+      render();
+    }
+
+    /******************************************************************
+     * DATE + DUE
+     ******************************************************************/
+    function todayStr(){ return new Date().toISOString().slice(0,10); }
+    function nowMs(){ return Date.now(); }
+    function isDue(card){
+      return !card.mastered && (!card.nextReview || card.nextReview.slice(0,10) <= todayStr());
+    }
+
+    /******************************************************************
+     * SM-2
+     ******************************************************************/
+    function sm2(card, quality){
+      let {interval=1, easeFactor=2.5, repetitions=0} = card;
+      if (quality < 3){ repetitions = 0; interval = 1; }
+      else{
+        if (repetitions === 0) interval = 1;
+        else if (repetitions === 1) interval = 6;
+        else interval = Math.round(interval * easeFactor);
+        repetitions++;
+      }
+      easeFactor = Math.max(1.3, easeFactor + 0.1 - (5-quality) * (0.08 + (5-quality)*0.02));
+      const nr = new Date();
+      nr.setDate(nr.getDate() + interval);
+      return {...card, interval, easeFactor, repetitions, nextReview: nr.toISOString(), mastered: quality===5};
+    }
+
+    /******************************************************************
+     * ANSWER MATCHING (fuzzy typed responses)
+     ******************************************************************/
+    function normalizeStr(s){
+      return (s||"").toLowerCase().replace(/[^a-z0-9\s]/g,"").replace(/\s+/g," ").trim();
+    }
+    function levenshtein(a,b){
+      const dp = Array.from({length:a.length+1}, (_,i)=>Array.from({length:b.length+1},(_,j)=> i===0?j : j===0?i : 0));
+      for(let i=1;i<=a.length;i++){
+        for(let j=1;j<=b.length;j++){
+          dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+        }
+      }
+      return dp[a.length][b.length];
+    }
+    function checkAnswer(input, answer){
+      const inp = normalizeStr(input), ans = normalizeStr(answer);
+      if (!inp) return "wrong";
+      if (inp === ans) return "correct";
+      if (inp.includes(ans)) return "correct";
+      if (ans.includes(inp) && inp.length >= Math.floor(ans.length * 0.55)) return "correct";
+
+      const ansWords = ans.split(" ");
+      if (ansWords.length === 1){
+        const d = levenshtein(inp, ans);
+        if (d === 0) return "correct";
+        if (d <= 1) return "close";
+        if (d <= 2 && ans.length > 6) return "close";
+        return "wrong";
+      }
+      const keywords = ansWords.filter(w=>w.length>=4);
+      if (!keywords.length) return levenshtein(inp, ans) <= Math.floor(ans.length*.2) ? "close" : "wrong";
+      const inpWords = inp.split(" ");
+      let hits = 0;
+      for (const kw of keywords){
+        if (inpWords.some(w => w===kw || w.includes(kw) || kw.includes(w) || levenshtein(w,kw)<=1)) hits++;
+      }
+      const cov = hits / keywords.length;
+      if (cov >= 0.8) return "correct";
+      if (cov >= 0.5) return "close";
+      return "wrong";
+    }
+
+    /******************************************************************
+     * CLOZE + MC MODE
+     ******************************************************************/
+    function makeCloze(text){
+      const words = (text||"").split(" ");
+      if (words.length < 3) return {clozeText:"___", answer:text||""};
+      let idx=1, max=0;
+      words.forEach((w,i)=>{
+        const l = w.replace(/[^a-z]/gi,"").length;
+        if (l>max && i>0){ max=l; idx=i; }
+      });
+      return {clozeText: words.map((w,i)=> i===idx ? "___" : w).join(" "), answer: words[idx]};
+    }
+
+    // After 3 wrong attempts, switch mode:
+    // "cloze" or "mc"
+    function decideAdaptiveMode(card){
+      const pref = card.adaptivePref || "cloze";
+      return pref; // you can later add per-deck preference
+    }
+
+    function buildMCOptions(currentCard, deckCards, n=4){
+      // correct answer is currentCard.back; distractors from other cards' backs
+      const correct = (currentCard.back||"").trim();
+      const pool = deckCards
+        .map(c => (c.back||"").trim())
+        .filter(b => b && b !== correct && b.length >= 2 && b.length <= 120);
+
+      // pick unique random distractors
+      const picks = [];
+      const used = new Set([correct]);
+      for (let i=0; i<pool.length && picks.length < (n-1); i++){
+        const idx = Math.floor(Math.random()*pool.length);
+        const cand = pool[idx];
+        if (!used.has(cand)){
+          used.add(cand);
+          picks.push(cand);
+        }
+      }
+      // if not enough, just stop
+      const opts = [correct, ...picks].slice(0,n);
+      // shuffle
+      for (let i=opts.length-1; i>0; i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [opts[i], opts[j]] = [opts[j], opts[i]];
+      }
+      return { options: opts, correct };
+    }
+
+    /******************************************************************
+     * SHORT-TERM LEARNING REPEATS (1–3 minutes)
+     ******************************************************************/
+    function computeLearningDelayMs(label){
+      if (label === "again") return 60_000;   // 1 min
+      if (label === "hard")  return 150_000;  // 2.5 min
+      return 0;
+    }
+
+    /******************************************************************
+     * INTERLEAVED QUEUE
+     ******************************************************************/
+    function buildInterleavedQueue(decks, limit=150, alreadyReviewed=0){
+      const rem = Math.max(0, limit - alreadyReviewed);
+      if (!rem) return [];
+      const deckDue = {};
+      let total = 0;
+      for (const [id, deck] of Object.entries(decks)){
+        const due = (deck.cards||[]).filter(isDue);
+        if (due.length){ deckDue[id]=due; total += due.length; }
+      }
+      if (!total) return [];
+      const slots = {};
+      let assigned=0;
+      for (const [id, due] of Object.entries(deckDue)){
+        const s = Math.max(1, Math.floor(rem * (due.length/total)));
+        slots[id] = Math.min(s, due.length);
+        assigned += slots[id];
+      }
+      let extra = rem - assigned;
+      for (const id of Object.keys(slots)){
+        if (extra<=0) break;
+        const add = Math.min(extra, deckDue[id].length - slots[id]);
+        slots[id] += add; extra -= add;
+      }
+      const queues = Object.entries(slots).map(([id,count]) => ({
+        deckId:id,
+        cards: deckDue[id].slice(0,count).map(c=>({...c, deckId:id}))
+      }));
+      const result=[];
+      const maxLen = Math.max(...queues.map(q=>q.cards.length));
+      for(let i=0;i<maxLen;i++){
+        for (const q of queues){
+          if (i < q.cards.length) result.push(q.cards[i]);
+        }
+      }
+      return result;
+    }
+
+    /******************************************************************
+     * IMAGE HELPERS (paste + base64)
+     ******************************************************************/
+    function fileToBase64(file){
+      return new Promise((resolve)=>{
+        const r = new FileReader();
+        r.onload = ()=> resolve(r.result);
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function clipboardImageToBase64(e){
+      const items = e.clipboardData?.items || [];
+      for (const it of items){
+        if (it.type && it.type.startsWith("image/")){
+          const file = it.getAsFile();
+          if (!file) continue;
+          return await fileToBase64(file);
+        }
+      }
+      return null;
+    }
+
+    /******************************************************************
+     * SMART IMPORTS
+     ******************************************************************/
+    async function extractLinesFromPDF(file){
+      const buf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({data: buf}).promise;
+      const linesOut = [];
+
+      for (let p=1; p<=pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent({ normalizeWhitespace: true, disableCombineTextItems: false });
+        const items = tc.items.map(it=>{
+          const [a,b,c,d,e,f] = it.transform;
+          return { str:(it.str||"").trim(), x:e, y:f };
+        }).filter(it=>it.str);
+
+        items.sort((u,v)=> v.y - u.y || u.x - v.x);
+        const groups = [];
+        const tol = 2.2;
+        for (const it of items){
+          const last = groups[groups.length-1];
+          if (!last || Math.abs(last.y - it.y) > tol){
+            groups.push({ y: it.y, cols:[it] });
+          }else{
+            last.cols.push(it);
+          }
+        }
+
+        for (const g of groups){
+          g.cols.sort((u,v)=> u.x - v.x);
+          const parts=[];
+          for (let i=0;i<g.cols.length;i++){
+            const cur=g.cols[i], prev=g.cols[i-1];
+            if (prev){
+              const gap = cur.x - prev.x;
+              if (gap > 80) parts.push(" | ");
+              else if (gap > 12) parts.push(" ");
+            }
+            parts.push(cur.str);
+          }
+          const text = parts.join("").replace(/\s+/g," ").trim();
+          if (text) linesOut.push({page:p, text});
+        }
+      }
+
+      // remove repetitive header/footer lines
+      const freq = new Map();
+      for (const L of linesOut){
+        const k = L.text.toLowerCase();
+        freq.set(k, (freq.get(k)||0)+1);
+      }
+      const pages = new Set(linesOut.map(l=>l.page)).size || 1;
+      const threshold = Math.max(3, Math.floor(pages * 0.55));
+      const filtered = linesOut.filter(L => (freq.get(L.text.toLowerCase())||0) < threshold);
+
+      return filtered.map(l=>l.text);
+    }
+
+    async function extractCardsFromSpreadsheet(file){
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:"array"});
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:""});
+      if (!rows || !rows.length) return [];
+
+      let headerRowIdx = 0;
+      let bestScore = -1;
+      for (let i=0; i<Math.min(10, rows.length); i++){
+        const r = rows[i].map(x=>String(x||"").trim().toLowerCase());
+        const score =
+          (r.some(c=>["front","question","q"].includes(c))?1:0)+
+          (r.some(c=>["back","answer","a"].includes(c))?1:0);
+        if (score>bestScore){ bestScore=score; headerRowIdx=i; }
+      }
+
+      const header = rows[headerRowIdx].map(x=>String(x||"").trim().toLowerCase());
+      const fi = header.findIndex(h=>h==="front"||h==="question"||h==="q");
+      const bi = header.findIndex(h=>h==="back"||h==="answer"||h==="a");
+      const frontIdx = fi>=0 ? fi : 0;
+      const backIdx  = bi>=0 ? bi : 1;
+
+      const cards=[];
+      for (let i=headerRowIdx+1; i<rows.length; i++){
+        const r = rows[i].map(x=>String(x||"").trim());
+        if (r.every(c=>!c)) continue;
+
+        let front = (r[frontIdx]||"").trim();
+        let back  = (r[backIdx]||"").trim();
+
+        if ((!front || !back) && r.length===1){
+          const split = smartSplitOneLine(r[0]);
+          if (split){ front = split.front; back = split.back; }
+        }
+        if (front && back) cards.push({front: front.slice(0,500), back: back.slice(0,500)});
+      }
+      return cards;
+    }
+
+    function smartSplitOneLine(line){
+      const s = String(line||"").trim();
+      if (!s) return null;
+      const seps = ["\t"," | "," → ","->","—"," – "," - "," : "];
+      for (const sep of seps){
+        const idx = s.indexOf(sep);
+        if (idx>0 && idx<s.length-1){
+          const left = s.slice(0,idx).trim();
+          const right = s.slice(idx+sep.length).trim();
+          if (left.length>=2 && right.length>=2) return {front:left, back:right};
+        }
+      }
+      const m = s.match(/Q:\s*(.+?)\s*A:\s*(.+)$/i);
+      if (m) return {front:m[1].trim(), back:m[2].trim()};
+      return null;
+    }
+
+    function normalizeFront(left){
+      const s = String(left||"").trim();
+      if (!s) return "";
+      if (/\?$/.test(s)) return s;
+      if (/^(define|what is|why|how|when|where|which|who)\b/i.test(s)) return s.endsWith("?")?s:(s+"?");
+      return `What is ${s}?`;
+    }
+
+    function parseCardsFromTextSmart(text){
+      const raw = String(text||"");
+      const lines = raw.split(/\n/).map(l=>l.trim()).filter(Boolean);
+
+      // 0) two-column separator from PDF extractor
+      {
+        const tmp=[];
+        for (const line of lines){
+          if (line.includes(" | ")){
+            const [l,r] = line.split(" | ").map(s=>s.trim());
+            if (l && r && l.length>=2 && r.length>=2) tmp.push({front:normalizeFront(l), back:r});
+          }
+        }
+        if (tmp.length>=10) return tmp;
+      }
+
+      // 1) Q/A blocks
+      {
+        const joined = raw.replace(/\n/g," ");
+        const matches = [...joined.matchAll(/Q:\s*(.+?)\s*A:\s*(.+?)(?=Q:|$)/gi)];
+        if (matches.length>=3){
+          return matches
+            .map(m=>({front:m[1].trim(), back:m[2].trim()}))
+            .filter(c=>c.front.length>4 && c.back.length>1);
+        }
+      }
+
+      // 2) Question/Answer
+      {
+        const joined = raw.replace(/\n/g," ");
+        const matches = [...joined.matchAll(/Question:\s*(.+?)\s*Answer:\s*(.+?)(?=Question:|$)/gi)];
+        if (matches.length>=3){
+          return matches
+            .map(m=>({front:m[1].trim(), back:m[2].trim()}))
+            .filter(c=>c.front.length>4 && c.back.length>1);
+        }
+      }
+
+      // 3) numbered Qs
+      {
+        const tmp=[];
+        for (let i=0;i<lines.length;i++){
+          if (/^\d+[\.\)]\s+.+\?$/.test(lines[i])){
+            const front = lines[i].replace(/^\d+[\.\)]\s+/,"").trim();
+            const ans=[];
+            let j=i+1;
+            while (j<lines.length && !/^\d+[\.\)]\s/.test(lines[j]) && ans.length<6){
+              if (lines[j].length>2) ans.push(lines[j]);
+              j++;
+            }
+            if (ans.length){ tmp.push({front, back: ans.join(" ").slice(0,500)}); i=j-1; }
+          }
+        }
+        if (tmp.length>=3) return tmp;
+      }
+
+      // 4) term-definition
+      {
+        const tmp=[];
+        for (const line of lines){
+          const m = line.match(/^(.{2,80}?)(?:\s*[:\-–—]\s+)(.{6,}.*)$/);
+          if (!m) continue;
+          const left = m[1].trim();
+          const right = m[2].trim();
+          if (/^(https?|fig|table|note|section|chapter|page)\b/i.test(left)) continue;
+          if (left.split(" ").length>10) continue;
+          tmp.push({front: normalizeFront(left), back: right.slice(0,500)});
+        }
+        if (tmp.length>=10) return tmp;
+      }
+
+      // 5) one-line split
+      {
+        const tmp=[];
+        for (const line of lines){
+          const split = smartSplitOneLine(line);
+          if (split) tmp.push({front: split.front, back: split.back});
+        }
+        if (tmp.length>=10) return tmp;
+      }
+
+      // 6) fallback lines
+      return lines
+        .filter(l=>l.length>20 && l.length<400)
+        .map(l=>({front:l, back:"Review: "+l}));
+    }
+
+    // Optional: line-by-line reader (pairs adjacent lines)
+    function cardsFromLinesLineByLine(lines){
+      const clean = lines
+        .map(x=>String(x||"").replace(/\s+/g," ").trim())
+        .filter(x=>x.length>=6 && x.length<=400);
+      const cards=[];
+      for (let i=0;i<clean.length-1;i+=2){
+        cards.push({front: normalizeFront(clean[i]), back: clean[i+1]});
+      }
+      return cards;
+    }
+
+    /******************************************************************
+     * UI RENDER
+     ******************************************************************/
+    function render(){
+      const root = document.getElementById("root");
+      if (SCREEN === "study"){
+        root.innerHTML = studyHTML();
+        bindStudy();
+        return;
+      }
+      root.innerHTML = layoutHTML(mainHTML());
+      bindNav();
+      if (SCREEN === "dashboard") bindDashboard();
+      if (SCREEN === "add") bindAdd();
+      if (SCREEN === "manage") bindManage();
+    }
+
+    function layoutHTML(inner){
+      return `
+        <div class="app">
+          <aside class="sidebar">
+            <div class="logo"><span class="mark">◈</span><span class="word">RECALL</span></div>
+            <nav class="nav">
+              ${navBtn("dashboard","⊞","Dashboard")}
+              ${navBtn("study","▶","Study All")}
+              ${navBtn("manage","☰","My Decks")}
+              ${navBtn("add","+","New Deck")}
+            </nav>
+          </aside>
+          <main class="main">${inner}</main>
+        </div>
+      `;
+    }
+    function navBtn(key, ic, label){
+      const active = (SCREEN===key) ? "active" : "";
+      return `<button class="${active}" data-nav="${key}"><span>${ic}</span>${label}</button>`;
+    }
+
+    function headerHTML(withBackBtn){
+      const h = new Date().getHours();
+      const greet = h<12 ? "Good morning" : h<17 ? "Good afternoon" : "Good evening";
+      const date = new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+      const allCards = Object.values(DATA.decks).flatMap(d=>d.cards||[]);
+      const due = allCards.filter(isDue).length;
+      const right = withBackBtn
+        ? `<button class="btnOutline" id="backDash">← Back</button>`
+        : (due>0 ? `<span class="tag orange">${due} cards due</span>` : `<span class="tag green">All caught up ✓</span>`);
+      return `
+        <div class="topbar">
+          <div>
+            <div class="greeting">${greet}</div>
+            <div class="date">${date}</div>
+          </div>
+          ${right}
+        </div>
+      `;
+    }
+
+    function dailyProgressHTML(){
+      const today = todayStr();
+      const st = DATA.stats[today] || {reviewed:0,correct:0,wrong:0};
+      const pct = Math.min(100, Math.round((st.reviewed/150)*100));
+      const acc = st.reviewed>0 ? Math.round((st.correct/st.reviewed)*100) : 0;
+      return `
+        <div class="progressCard">
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:800;color:var(--muted)">Daily Goal: 150 cards</span>
+            <span style="font-size:13px;font-weight:900;color:var(--purple)">${pct}% · ${acc}% accuracy</span>
+          </div>
+          <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+          <div style="display:flex;gap:18px;margin-top:10px;font-size:13px;flex-wrap:wrap">
+            <span style="color:var(--green);font-weight:900">✓ ${st.correct}</span>
+            <span style="color:var(--red);font-weight:900">✗ ${st.wrong}</span>
+            <span style="color:var(--muted);font-weight:900">${150-st.reviewed} remaining</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function mainHTML(){
+      if (SCREEN === "dashboard") return dashboardHTML();
+      if (SCREEN === "add") return addHTML();
+      if (SCREEN === "manage") return manageHTML();
+      return dashboardHTML();
+    }
+
+    /******************************************************************
+     * DASHBOARD
+     ******************************************************************/
+    function dashboardHTML(){
+      const today = todayStr();
+      const todayStats = DATA.stats[today] || {reviewed:0,correct:0,wrong:0};
+      const allCards = Object.values(DATA.decks).flatMap(d=>d.cards||[]);
+      const totalDue = allCards.filter(isDue).length;
+
+      let subjects = "";
+      const deckEntries = Object.entries(DATA.decks);
+      if (deckEntries.length){
+        subjects += `<div class="section">Subjects</div><div class="grid">`;
+        const allDue = totalDue;
+        for (const [id, deck] of deckEntries){
+          const cards = deck.cards||[];
+          const due = cards.filter(isDue).length;
+          const mastered = cards.filter(c=>c.mastered).length;
+          const pct = cards.length ? Math.round((mastered/cards.length)*100) : 0;
+          const mySlots = allDue>0 ? Math.round(150*(due/allDue)) : 0;
+          subjects += `
+            <div class="card">
+              <div class="cardTop">
+                <div class="cardName">${escapeHTML(deck.name)}</div>
+                <div class="pct" style="${pct===100?'color:var(--orange)':''}">${pct}%</div>
+              </div>
+              <div class="meta">${cards.length} cards · ${mastered} mastered</div>
+              <div class="bar"><div style="width:${pct}%"></div></div>
+              <div class="meta">
+                ${due>0 ? `<span style="color:var(--orange);font-weight:900">~${mySlots} cards today</span>` : `<span style="color:var(--green);font-weight:900">Up to date ✓</span>`}
+              </div>
+            </div>
+          `;
+        }
+        subjects += `</div>`;
+        subjects += `<button class="bigBtn" id="studyAllBtn">Study All Subjects — ${Math.max(0,150-todayStats.reviewed)} cards remaining today →</button>`;
+      }else{
+        subjects += `
+          <div class="box" style="text-align:center;padding:48px 18px">
+            <div style="font-size:44px;color:var(--border);margin-bottom:10px">◈</div>
+            <div style="color:var(--muted);margin-bottom:18px;font-weight:800">No decks yet. Upload a PDF/Excel to start.</div>
+            <button class="btnPrimary" id="goAdd">+ Create First Deck</button>
+          </div>
+        `;
+      }
+
+      let overview = "";
+      if (allCards.length){
+        overview += `
+          <div class="section">Overview</div>
+          <div class="row">
+            ${stat("Total", allCards.length, "var(--text)")}
+            ${stat("Mastered", allCards.filter(c=>c.mastered).length, "var(--green)")}
+            ${stat("Due Today", totalDue, "var(--orange)")}
+            ${stat("Decks", Object.keys(DATA.decks).length, "var(--purple)")}
+            ${stat("Correct ✓", todayStats.correct, "var(--cyan)")}
+            ${stat("Wrong ✗", todayStats.wrong, "var(--red)")}
+          </div>
+        `;
+      }
+
+      return `${headerHTML(false)}${dailyProgressHTML()}${subjects}${overview}`;
+    }
+
+    function stat(label, value, color){
+      return `
+        <div class="stat">
+          <div class="v" style="color:${color}">${value}</div>
+          <div class="l">${label}</div>
+        </div>
+      `;
+    }
+
+    function bindDashboard(){
+      const a = document.getElementById("studyAllBtn");
+      if (a) a.onclick = ()=> setScreen("study");
+      const b = document.getElementById("goAdd");
+      if (b) b.onclick = ()=> setScreen("add");
+    }
+
+    /******************************************************************
+     * ADD DECK (PDF/Excel/Text/Manual + line-by-line toggle)
+     ******************************************************************/
+    function addHTML(){
+      return `
+        ${headerHTML(true)}
+        <div style="max-width:720px">
+          <div style="margin-bottom:18px">
+            <div class="tiny" style="font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)">Deck / Subject Name</div>
+            <input class="input" id="deckName" placeholder="e.g. Biochemistry, Biology, Physics" />
+          </div>
+
+          <div style="margin-bottom:16px">
+            <div class="tiny" style="font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)">Import Method</div>
+            <div class="modeRow">
+              <button class="modeBtn active" data-mode="pdf">◉ PDF Upload (smart)</button>
+              <button class="modeBtn" data-mode="excel">▦ Excel/CSV</button>
+              <button class="modeBtn" data-mode="text">✎ Paste Text</button>
+              <button class="modeBtn" data-mode="manual">⊞ Manual</button>
+            </div>
+          </div>
+
+          <div id="modeArea"></div>
+          <div id="msgArea" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div>
+
+          <button class="btnPrimary" id="buildBtn" style="width:100%;margin-top:16px;padding:14px 0;font-size:15px">
+            Extract & Create Deck
+          </button>
+
+          <div class="note" style="margin-top:10px">
+            Smart import: Q/A, Question/Answer, numbered Qs, term-definition, 2-column PDFs. Images can be added later in Manage.
+          </div>
+        </div>
+      `;
+    }
+
+    function bindAdd(){
+      document.getElementById("backDash").onclick = ()=> setScreen("dashboard");
+
+      let mode = "pdf";
+      let files = [];
+      let textContent = "";
+      let busy = false;
+      let pdfLineByLine = false;
+
+      const modeButtons = [...document.querySelectorAll("[data-mode]")];
+      const modeArea = document.getElementById("modeArea");
+      const msgArea = document.getElementById("msgArea");
+      const buildBtn = document.getElementById("buildBtn");
+
+      function setMode(m){
+        mode = m;
+        modeButtons.forEach(b=>b.classList.toggle("active", b.dataset.mode===m));
+        files = [];
+        textContent = "";
+        pdfLineByLine = false;
+        msgArea.innerHTML = "";
+        renderModeArea();
+        buildBtn.textContent = (mode==="manual") ? "Create Empty Deck" : "Extract & Create Deck";
+      }
+
+      function pushMsg(kind, text){
+        const cls = kind==="err" ? "box err" : kind==="ok" ? "box ok" : "box";
+        msgArea.innerHTML = `<div class="${cls}">${escapeHTML(text)}</div>` + msgArea.innerHTML;
+      }
+
+      function renderModeArea(){
+        if (mode==="pdf"){
+          modeArea.innerHTML = `
+            <div style="margin-bottom:16px">
+              <div class="tiny" style="font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)">PDF Files</div>
+              <div class="upload" id="uploadZone">
+                <div style="font-size:30px;margin-bottom:8px">◉</div>
+                <div style="color:var(--muted);font-weight:800">Click to upload PDF(s)</div>
+                <div style="color:var(--muted2);font-size:12px;margin-top:4px">Layout-aware extraction (2-column friendly)</div>
+              </div>
+              <input type="file" id="fileInput" accept=".pdf" multiple style="display:none" />
+              <label style="display:flex;gap:10px;align-items:center;margin-top:10px;color:var(--muted);font-size:12px;font-weight:800">
+                <input type="checkbox" id="lineByLine" />
+                Line-by-line mode (pairs adjacent lines into cards)
+              </label>
+              <div class="note">If your PDF is basically a list, line-by-line can work better than parsing.</div>
+            </div>
+          `;
+          const input = document.getElementById("fileInput");
+          document.getElementById("uploadZone").onclick = ()=> input.click();
+          input.onchange = (e)=>{
+            files = [...e.target.files];
+            pushMsg("ok", `Loaded ${files.length} PDF(s): ${files.map(f=>f.name).join(", ")}`);
+          };
+          document.getElementById("lineByLine").onchange = (e)=>{ pdfLineByLine = !!e.target.checked; };
+        }
+
+        if (mode==="excel"){
+          modeArea.innerHTML = `
+            <div style="margin-bottom:16px">
+              <div class="tiny" style="font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)">Excel / CSV</div>
+              <div class="upload" id="uploadZone">
+                <div style="font-size:30px;margin-bottom:8px">▦</div>
+                <div style="color:var(--muted);font-weight:800">Click to upload .xlsx / .csv</div>
+                <div style="color:var(--muted2);font-size:12px;margin-top:4px">Detects Front/Back or Question/Answer headers</div>
+              </div>
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" />
+              <div class="note">Best: two columns named Front and Back.</div>
+            </div>
+          `;
+          const input = document.getElementById("fileInput");
+          document.getElementById("uploadZone").onclick = ()=> input.click();
+          input.onchange = (e)=>{
+            files = [...e.target.files];
+            pushMsg("ok", `Loaded spreadsheet: ${files[0]?.name || "(none)"}`);
+          };
+        }
+
+        if (mode==="text"){
+          modeArea.innerHTML = `
+            <div style="margin-bottom:16px">
+              <div class="tiny" style="font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)">Paste Content</div>
+              <textarea class="textarea" id="textArea" rows="10" placeholder="Paste anything:
+Q: ... A: ...
+Term - Definition
+or paragraphs — auto-detects format."></textarea>
+            </div>
+          `;
+          document.getElementById("textArea").oninput = (e)=>{ textContent = e.target.value; };
+        }
+
+        if (mode==="manual"){
+          modeArea.innerHTML = `<div class="box">Deck created empty — add cards in Manage.</div>`;
+        }
+      }
+
+      async function buildDeck(){
+        if (busy) return;
+        const name = document.getElementById("deckName").value.trim();
+        if (!name){ pushMsg("err","Enter a deck name"); return; }
+
+        busy = true;
+        buildBtn.disabled = true;
+        buildBtn.textContent = "Processing…";
+
+        try{
+          let rawCards = [];
+
+          if (mode==="pdf"){
+            if (!files.length) throw new Error("Upload at least one PDF");
+            for (const f of files){
+              pushMsg("ok", `Extracting: ${f.name}`);
+              const lines = await extractLinesFromPDF(f);
+              if (pdfLineByLine){
+                rawCards = rawCards.concat(cardsFromLinesLineByLine(lines));
+              }else{
+                rawCards = rawCards.concat(parseCardsFromTextSmart(lines.join("\n")));
+              }
+            }
+          }
+
+          if (mode==="excel"){
+            if (!files.length) throw new Error("Upload an Excel/CSV file");
+            rawCards = await extractCardsFromSpreadsheet(files[0]);
+          }
+
+          if (mode==="text"){
+            if (!textContent.trim()) throw new Error("Paste some text");
+            rawCards = parseCardsFromTextSmart(textContent);
+          }
+
+          if (mode==="manual"){
+            rawCards = [];
+          }
+
+          // de-dupe exact
+          const seen = new Set();
+          const clean = [];
+          for (const c of rawCards){
+            const front = (c.front||"").trim();
+            const back  = (c.back||"").trim();
+            if (!front || !back) continue;
+            const k = front+"||"+back;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            clean.push({front: front.slice(0,500), back: back.slice(0,500)});
+          }
+
+          const cards = clean.map((c,i)=>makeCard({
+            id: `${Date.now()}_${i}`,
+            front: c.front,
+            back: c.back
+          }));
+
+          const deckId = `deck_${Date.now()}`;
+          updateData(d=>{
+            d.decks[deckId] = { name, cards, createdAt: new Date().toISOString() };
+          });
+
+        }catch(e){
+          pushMsg("err", e.message || "Error");
+        }finally{
+          busy = false;
+          buildBtn.disabled = false;
+          buildBtn.textContent = (mode==="manual") ? "Create Empty Deck" : "Extract & Create Deck";
+        }
+      }
+
+      modeButtons.forEach(b=> b.onclick = ()=> setMode(b.dataset.mode));
+      buildBtn.onclick = buildDeck;
+
+      renderModeArea();
+    }
+
+    /******************************************************************
+     * CARD MODEL
+     ******************************************************************/
+    function makeCard({id, front, back, frontImage=null, backImage=null}){
+      return {
+        id: id || String(Date.now()),
+        front: front || "",
+        back: back || "",
+        frontImage,
+        backImage,
+
+        wrongCount: 0,
+        interval: 1,
+        easeFactor: 2.5,
+        repetitions: 0,
+        nextReview: null,
+        mastered: false,
+
+        // adaptive learning settings
+        adaptiveThreshold: 3,      // switch after 3 wrong checks
+        adaptiveMode: "typed",     // typed | cloze | mc
+        adaptivePref: "cloze",     // after threshold: "cloze" or "mc"
+      };
+    }
+
+    /******************************************************************
+     * MANAGE (edit cards, paste images)
+     ******************************************************************/
+    function manageHTML(){
+      return `
+        ${headerHTML(true)}
+        <div class="split">
+          <div class="left" id="deckList"></div>
+          <div class="right" id="deckPanel"></div>
+        </div>
+      `;
+    }
+
+    function bindManage(){
+      document.getElementById("backDash").onclick = ()=> setScreen("dashboard");
+
+      const deckList = document.getElementById("deckList");
+      const deckPanel = document.getElementById("deckPanel");
+      let selected = null;
+      let filter = "all";
+      let editingCardId = null;
+
+      function renderDeckList(){
+        const entries = Object.entries(DATA.decks);
+        if (!entries.length){
+          deckList.innerHTML = `<div class="box" style="color:var(--muted)">No decks yet</div>`;
+          deckPanel.innerHTML = `<div class="box" style="color:var(--muted)">Create a deck first</div>`;
+          return;
+        }
+        if (!selected) selected = entries[0][0];
+
+        deckList.innerHTML = entries.map(([id, deck])=>{
+          const mastered = (deck.cards||[]).filter(c=>c.mastered).length;
+          return `
+            <div class="deckItem ${selected===id?'active':''}" data-deck="${id}">
+              <div style="font-weight:900">${escapeHTML(deck.name)}</div>
+              <div class="tiny" style="color:var(--muted)">${(deck.cards||[]).length} cards · ${mastered} mastered</div>
+            </div>
+          `;
+        }).join("");
+
+        deckList.querySelectorAll("[data-deck]").forEach(el=>{
+          el.onclick = ()=>{ selected = el.dataset.deck; editingCardId=null; renderDeckList(); renderPanel(); };
+        });
+
+        renderPanel();
+      }
+
+      function renderPanel(){
+        if (!selected || !DATA.decks[selected]){
+          deckPanel.innerHTML = `<div class="box" style="color:var(--muted)">Select a deck</div>`;
+          return;
+        }
+        const deck = DATA.decks[selected];
+        const cardsAll = deck.cards||[];
+        const vis = cardsAll.filter(c => filter==="due" ? isDue(c) : filter==="mastered" ? c.mastered : true);
+
+        const editCard = editingCardId ? cardsAll.find(c=>c.id===editingCardId) : null;
+
+        deckPanel.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <div style="font-size:18px;font-weight:900">${escapeHTML(deck.name)}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btnSmall" id="newCardBtn">+ Card</button>
+              <button class="btnSmall btnDanger" id="deleteDeckBtn">Delete Deck</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            ${pill("all")} ${pill("due")} ${pill("mastered")}
+            <span style="margin-left:auto;color:var(--muted);font-size:12px;font-weight:900">${vis.length} shown</span>
+          </div>
+
+          <div id="editBox"></div>
+
+          <div class="list">
+            ${vis.map((c,i)=>`
+              <div class="rowCard">
+                <div class="mono" style="color:var(--muted2);font-size:11px;width:30px;flex-shrink:0">${i+1}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="ellipsis" style="font-size:13px;font-weight:900">${escapeHTML(c.front)}</div>
+                  <div class="ellipsis" style="font-size:12px;color:var(--muted);margin-top:3px">${escapeHTML(c.back)}</div>
+                  <div class="tiny" style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">
+                    ${(c.frontImage)?`<span>🖼 front</span>`:""}
+                    ${(c.backImage)?`<span>🖼 back</span>`:""}
+                    <span>mode: <span style="color:var(--purple)">${escapeHTML(c.adaptiveMode||"typed")}</span></span>
+                    <span>wrong: ${c.wrongCount||0}</span>
+                  </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
+                  <button class="btnSmall" data-edit="${c.id}">Edit</button>
+                  ${c.mastered ? `<button class="btnSmall" data-reset="${c.id}" style="color:var(--orange);border-color:rgba(251,146,60,.25)">Reset</button>` : ``}
+                  <button class="btnSmall btnDanger" data-del="${c.id}">Delete</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+
+        function pill(k){
+          return `<button class="pill ${filter===k?'active':''}" data-filter="${k}">${k}</button>`;
+        }
+
+        deckPanel.querySelectorAll("[data-filter]").forEach(b=>{
+          b.onclick = ()=>{ filter = b.dataset.filter; renderPanel(); };
+        });
+
+        deckPanel.querySelector("#deleteDeckBtn").onclick = ()=>{
+          updateData(d=>{ delete d.decks[selected]; });
+          selected = null;
+          editingCardId = null;
+        };
+
+        deckPanel.querySelector("#newCardBtn").onclick = ()=>{
+          editingCardId = "__new__";
+          renderPanel();
+        };
+
+        deckPanel.querySelectorAll("[data-edit]").forEach(btn=>{
+          btn.onclick = ()=>{ editingCardId = btn.dataset.edit; renderPanel(); };
+        });
+
+        deckPanel.querySelectorAll("[data-del]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const cid = btn.dataset.del;
+            updateData(d=>{
+              d.decks[selected].cards = d.decks[selected].cards.filter(x=>x.id!==cid);
+            });
+          };
+        });
+
+        deckPanel.querySelectorAll("[data-reset]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const cid = btn.dataset.reset;
+            updateData(d=>{
+              const idx = d.decks[selected].cards.findIndex(x=>x.id===cid);
+              if (idx>=0){
+                const c = d.decks[selected].cards[idx];
+                d.decks[selected].cards[idx] = {
+                  ...c,
+                  mastered:false, wrongCount:0, nextReview:null,
+                  interval:1, repetitions:0,
+                  adaptiveMode:"typed",
+                };
+              }
+            });
+          };
+        });
+
+        // Render edit box if editing
+        const editBox = deckPanel.querySelector("#editBox");
+        if (editingCardId){
+          const isNew = editingCardId === "__new__";
+          const c = isNew ? makeCard({id:String(Date.now()), front:"", back:""}) : editCard;
+
+          if (!c){
+            editBox.innerHTML = `<div class="box err">Could not load card.</div>`;
+            return;
+          }
+
+          editBox.innerHTML = `
+            <div class="box" style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                <div style="font-weight:900">${isNew ? "Add Card" : "Edit Card"}</div>
+                <button class="btnSmall" id="closeEdit">Close</button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px">
+                <textarea class="textarea" id="efront" rows="2" placeholder="Front text">${escapeHTML(c.front)}</textarea>
+
+                <div class="box" style="background:var(--panel2)">
+                  <div style="font-weight:900;margin-bottom:6px">Front image</div>
+                  <div class="tiny" style="color:var(--muted);margin-bottom:8px">Click area then paste (Ctrl+V) an image, or upload.</div>
+                  <div id="frontPaste" class="upload" style="padding:14px">Paste image here</div>
+                  <input type="file" id="frontFile" accept="image/*" style="margin-top:10px" />
+                  <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    ${c.frontImage ? `<img class="imgThumb" src="${c.frontImage}" />` : `<span class="tiny" style="color:var(--muted)">No image</span>`}
+                    <button class="btnSmall btnDanger" id="clearFrontImg">Clear</button>
+                  </div>
+                </div>
+
+                <textarea class="textarea" id="eback" rows="2" placeholder="Back text">${escapeHTML(c.back)}</textarea>
+
+                <div class="box" style="background:var(--panel2)">
+                  <div style="font-weight:900;margin-bottom:6px">Back image</div>
+                  <div class="tiny" style="color:var(--muted);margin-bottom:8px">Click area then paste (Ctrl+V) an image, or upload.</div>
+                  <div id="backPaste" class="upload" style="padding:14px">Paste image here</div>
+                  <input type="file" id="backFile" accept="image/*" style="margin-top:10px" />
+                  <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    ${c.backImage ? `<img class="imgThumb" src="${c.backImage}" />` : `<span class="tiny" style="color:var(--muted)">No image</span>`}
+                    <button class="btnSmall btnDanger" id="clearBackImg">Clear</button>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                  <label class="tiny" style="color:var(--muted);font-weight:900">
+                    After 3 wrongs, switch to:
+                    <select id="prefMode" style="margin-left:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 8px">
+                      <option value="cloze" ${c.adaptivePref==="cloze"?"selected":""}>Cloze</option>
+                      <option value="mc" ${c.adaptivePref==="mc"?"selected":""}>Multiple choice</option>
+                    </select>
+                  </label>
+                </div>
+
+                <button class="btnPrimary" id="saveCard">${isNew ? "Add Card" : "Save Changes"}</button>
+              </div>
+            </div>
+          `;
+
+          const close = deckPanel.querySelector("#closeEdit");
+          close.onclick = ()=>{ editingCardId = null; renderPanel(); };
+
+          // Paste targets
+          const frontPaste = deckPanel.querySelector("#frontPaste");
+          const backPaste = deckPanel.querySelector("#backPaste");
+
+          // We store temp images in closure variables
+          let frontImg = c.frontImage || null;
+          let backImg = c.backImage || null;
+
+          frontPaste.tabIndex = 0;
+          backPaste.tabIndex = 0;
+
+          frontPaste.onpaste = async (e)=>{
+            const b64 = await clipboardImageToBase64(e);
+            if (b64){ frontImg = b64; renderPanel(); }
+          };
+          backPaste.onpaste = async (e)=>{
+            const b64 = await clipboardImageToBase64(e);
+            if (b64){ backImg = b64; renderPanel(); }
+          };
+
+          deckPanel.querySelector("#frontFile").onchange = async (e)=>{
+            const file = e.target.files?.[0];
+            if (file){ frontImg = await fileToBase64(file); renderPanel(); }
+          };
+          deckPanel.querySelector("#backFile").onchange = async (e)=>{
+            const file = e.target.files?.[0];
+            if (file){ backImg = await fileToBase64(file); renderPanel(); }
+          };
+
+          deckPanel.querySelector("#clearFrontImg").onclick = ()=>{ frontImg=null; renderPanel(); };
+          deckPanel.querySelector("#clearBackImg").onclick = ()=>{ backImg=null; renderPanel(); };
+
+          deckPanel.querySelector("#saveCard").onclick = ()=>{
+            const nf = deckPanel.querySelector("#efront").value.trim();
+            const nb = deckPanel.querySelector("#eback").value.trim();
+            const pref = deckPanel.querySelector("#prefMode").value;
+
+            if (!nf && !frontImg) { alert("Add front text or image."); return; }
+            if (!nb && !backImg) { alert("Add back text or image."); return; }
+
+            updateData(d=>{
+              const deckRef = d.decks[selected];
+              if (isNew){
+                deckRef.cards.push(makeCard({
+                  id: String(Date.now()),
+                  front: nf, back: nb,
+                  frontImage: frontImg, backImage: backImg
+                }));
+                deckRef.cards[deckRef.cards.length-1].adaptivePref = pref;
+              }else{
+                const idx = deckRef.cards.findIndex(x=>x.id===c.id);
+                if (idx>=0){
+                  const old = deckRef.cards[idx];
+                  deckRef.cards[idx] = {
+                    ...old,
+                    front: nf,
+                    back: nb,
+                    frontImage: frontImg,
+                    backImage: backImg,
+                    adaptivePref: pref
+                  };
+                }
+              }
+            });
+
+            editingCardId = null;
+          };
+        }
+      }
+
+      renderDeckList();
+    }
+
+    /******************************************************************
+     * DASHBOARD + NAV BINDING
+     ******************************************************************/
+    function bindNav(){
+      document.querySelectorAll("[data-nav]").forEach(btn=>{
+        btn.onclick = ()=> setScreen(btn.dataset.nav);
+      });
+    }
+
+    /******************************************************************
+     * STUDY SCREEN (typed → wrong 3× → cloze or MC)
+     ******************************************************************/
+    function studyHTML(){
+      const today = todayStr();
+      const st = DATA.stats[today] || {reviewed:0,correct:0,wrong:0};
+      const primaryQueue = buildInterleavedQueue(DATA.decks, 150, st.reviewed);
+
+      if (!primaryQueue.length){
+        return `
+          <div class="studyWrap">
+            <div class="done">
+              <div class="ic">◈</div>
+              <div class="t">Nothing due!</div>
+              <div class="s">All cards up to date. See you tomorrow.</div>
+              <button class="btnOutline" id="exitStudy">← Back to Dashboard</button>
+            </div>
+          </div>
+        `;
+      }
+
+      window.__study = {
+        today,
+        primaryQueue,
+        requeue: [],
+        learning: [],        // minute repeats
+        __learningPick: -1,
+
+        idx: 0,
+        isRequeue: false,
+        reqIdx: 0,
+
+        phase: "question",   // question | revealed
+        input: "",
+        result: null,
+
+        // session stats
+        sess: {correct:0,wrong:0,total:0,requeues:0},
+
+        // mc state
+        mc: null,            // {options, correct}
+        mcPicked: null
+      };
+
+      return `
+        <div class="studyWrap">
+          <div class="studyTop">
+            <button class="btnOutline" id="exitStudy">← Exit</button>
+
+            <div class="progressZone">
+              <span id="reqBadge" class="reqBadge" style="display:none">🔁 Requeue</span>
+              <div class="track" style="flex:1;min-width:240px"><div class="fill" id="pfill"></div></div>
+              <span class="mono" id="ptext" style="font-size:12px;color:var(--muted);white-space:nowrap"></span>
+            </div>
+
+            <div style="font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap" id="deckName"></div>
+          </div>
+
+          <div class="cardZone">
+            <div id="modeTagWrap" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+
+            <div class="flash">
+              <img id="frontImg" class="imgLarge" style="display:none" />
+              <div class="q" id="qtext"></div>
+
+              <div id="mcOptions" class="mcOptions" style="display:none"></div>
+            </div>
+
+            <div id="typedPane">
+              <input class="ansInput" id="ansInput" placeholder="Type your answer…" autocomplete="off" spellcheck="false" />
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;flex-wrap:wrap">
+                <span class="hint">Enter to check · partial / keyword answers counted</span>
+                <button class="btnPrimary" id="checkBtn">Check →</button>
+              </div>
+            </div>
+
+            <div id="revealPane" class="reveal" style="display:none">
+              <div class="banner" id="banner"></div>
+
+              <div class="compare">
+                <div class="ansRow"><span class="ansLabel">You:</span><span id="youAns"></span></div>
+                <div class="ansRow"><span class="ansLabel">Answer:</span><span style="color:var(--green)" id="trueAns"></span></div>
+              </div>
+
+              <img id="backImg" class="imgLarge" style="display:none" />
+
+              <div class="rating">
+                ${rateBtn("Again","~1m","var(--red)","again",false)}
+                ${rateBtn("Hard","~2–3m","var(--orange)","hard",false)}
+                ${rateBtn("Good","few d","#60a5fa","good",false)}
+                ${rateBtn("Easy","week+","var(--green)","easy",false)}
+                ${rateBtn("Mastered","retire","var(--purple)","mastered",true)}
+              </div>
+
+              <div class="hint" style="text-align:center">Again/Hard repeat soon + can still requeue end-of-session</div>
+            </div>
+          </div>
+
+          <div class="studyFoot">
+            <span style="color:var(--green);font-weight:900">✓ <span id="sc"></span></span>
+            <span style="color:var(--red);font-weight:900">✗ <span id="sw"></span></span>
+            <span style="color:var(--orange);font-weight:900">🔁 <span id="srq"></span> queued</span>
+            <span style="color:var(--muted);font-weight:900"><span id="sleft"></span> left today</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function rateBtn(label, sub, col, id, wide){
+      return `
+        <button class="rBtn" data-rate="${id}" style="flex:${wide?1.5:1}; border-color:${col}44; color:${col}; background:${col}22">
+          <span>${label}</span><span>${sub}</span>
+        </button>
+      `;
+    }
+
+    function bindStudy(){
+      const exit = document.getElementById("exitStudy");
+      if (exit) exit.onclick = ()=> setScreen("dashboard");
+
+      const st = window.__study;
+      if (!st) return;
+
+      const qtext = document.getElementById("qtext");
+      const ansInput = document.getElementById("ansInput");
+      const checkBtn = document.getElementById("checkBtn");
+      const typedPane = document.getElementById("typedPane");
+      const revealPane = document.getElementById("revealPane");
+      const banner = document.getElementById("banner");
+      const youAns = document.getElementById("youAns");
+      const trueAns = document.getElementById("trueAns");
+      const reqBadge = document.getElementById("reqBadge");
+      const pfill = document.getElementById("pfill");
+      const ptext = document.getElementById("ptext");
+      const deckName = document.getElementById("deckName");
+      const modeTagWrap = document.getElementById("modeTagWrap");
+      const mcOptions = document.getElementById("mcOptions");
+
+      const frontImg = document.getElementById("frontImg");
+      const backImg = document.getElementById("backImg");
+
+      const sc = document.getElementById("sc");
+      const sw = document.getElementById("sw");
+      const srq = document.getElementById("srq");
+      const sleft = document.getElementById("sleft");
+
+      function currentCard(){
+        // prefer learning cards due now
+        const li = st.learning.findIndex(x => x.dueTimeMs <= nowMs());
+        if (li >= 0){
+          st.__learningPick = li;
+          return st.learning[li].card;
+        }
+        st.__learningPick = -1;
+        return st.isRequeue ? st.requeue[st.reqIdx] : st.primaryQueue[st.idx];
+      }
+
+      function getDeckCards(deckId){
+        const did = deckId;
+        return DATA.decks[did]?.cards || [];
+      }
+
+      function refresh(){
+        const card = currentCard();
+        if (!card){
+          // done
+          const acc = st.sess.total ? Math.round((st.sess.correct/st.sess.total)*100) : 0;
+          document.getElementById("root").innerHTML = `
+            <div class="studyWrap">
+              <div class="done">
+                <div class="ic">✦</div>
+                <div class="t">Session Complete!</div>
+                <div class="s">${acc}% accuracy · ${st.sess.requeues} requeue(s)</div>
+                <button class="btnOutline" id="exitStudy">← Back to Dashboard</button>
+              </div>
+            </div>
+          `;
+          document.getElementById("exitStudy").onclick = ()=> setScreen("dashboard");
+          return;
+        }
+
+        // Determine mode: typed vs cloze vs mc
+        let mode = card.adaptiveMode || "typed";
+        const threshold = card.adaptiveThreshold ?? 3;
+        const wrongs = card.wrongCount || 0;
+        if (mode === "typed" && wrongs >= threshold){
+          mode = decideAdaptiveMode(card); // cloze or mc
+        }
+
+        // set tags
+        modeTagWrap.innerHTML = "";
+        if (mode === "cloze") modeTagWrap.innerHTML += `<div class="clozeTag">CLOZE MODE</div>`;
+        if (mode === "mc") modeTagWrap.innerHTML += `<div class="mcTag">MULTIPLE CHOICE</div>`;
+        if (wrongs > 0) modeTagWrap.innerHTML += `<div class="clozeTag" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);color:var(--red)">Wrong: ${wrongs}</div>`;
+
+        // progress
+        const completed = st.isRequeue ? (st.primaryQueue.length + st.reqIdx) : st.idx;
+        const total = st.primaryQueue.length + (st.requeue.length || 0);
+        const pct = total ? (completed/total) : 0;
+        pfill.style.width = (pct*100).toFixed(1)+"%";
+        ptext.textContent = `${completed}/${st.primaryQueue.length}`;
+
+        reqBadge.style.display = st.isRequeue ? "inline-flex" : "none";
+        if (st.isRequeue) reqBadge.textContent = `🔁 Requeue — ${st.requeue.length - st.reqIdx} left`;
+
+        deckName.textContent = DATA.decks[card.deckId]?.name || "";
+
+        // front image
+        if (card.frontImage){
+          frontImg.src = card.frontImage;
+          frontImg.style.display = "block";
+        }else{
+          frontImg.style.display = "none";
+        }
+
+        // question text
+        if (mode === "cloze"){
+          const cl = makeCloze(card.back);
+          qtext.textContent = cl.clozeText;
+        } else {
+          qtext.textContent = card.front;
+        }
+
+        // MC options
+        if (mode === "mc" && st.phase === "question"){
+          typedPane.style.display = "none";
+          mcOptions.style.display = "flex";
+          const deckCards = getDeckCards(card.deckId);
+          st.mc = buildMCOptions(card, deckCards, 4);
+          st.mcPicked = null;
+
+          mcOptions.innerHTML = st.mc.options.map((opt, i)=>`
+            <button class="mcBtn" data-mc="${i}">
+              ${String.fromCharCode(65+i)}. ${escapeHTML(opt)}
+            </button>
+          `).join("");
+
+          mcOptions.querySelectorAll("[data-mc]").forEach(btn=>{
+            btn.onclick = ()=>{
+              const pick = st.mc.options[Number(btn.dataset.mc)];
+              st.mcPicked = pick;
+              // treat as answer
+              const res = (normalizeStr(pick) === normalizeStr(st.mc.correct)) ? "correct" : "wrong";
+              st.result = res;
+              st.phase = "revealed";
+              refresh();
+            };
+          });
+        }else{
+          mcOptions.style.display = "none";
+          typedPane.style.display = (st.phase === "question") ? "block" : "none";
+        }
+
+        // panes
+        revealPane.style.display = (st.phase === "revealed") ? "flex" : "none";
+        if (st.phase === "question"){
+          if (mode !== "mc"){
+            ansInput.value = "";
+            ansInput.placeholder = (mode==="cloze") ? "Fill in the blank…" : "Type your answer…";
+            setTimeout(()=>ansInput.focus(), 0);
+          }
+        }
+
+        // reveal content
+        if (st.phase === "revealed"){
+          const res = st.result;
+          banner.className = "banner " + res;
+          banner.textContent =
+            res==="correct" ? "✓ Correct!" :
+            res==="close"   ? "≈ Close — review the full answer" :
+                              "✗ Incorrect";
+
+          // show your answer based on mode
+          const you =
+            (mode === "mc") ? (st.mcPicked || "") :
+            (st.input || "");
+
+          youAns.textContent = you;
+          youAns.style.color = (res==="wrong") ? "var(--red)" : "var(--text)";
+          trueAns.textContent = card.back;
+
+          // back image
+          if (card.backImage){
+            backImg.src = card.backImage;
+            backImg.style.display = "block";
+          }else{
+            backImg.style.display = "none";
+          }
+        }
+
+        // footer stats
+        sc.textContent = st.sess.correct;
+        sw.textContent = st.sess.wrong;
+        srq.textContent = st.requeue.length;
+        const today = todayStr();
+        const already = (DATA.stats[today]?.reviewed||0);
+        sleft.textContent = Math.max(0, 150 - already);
+      }
+
+      function advance(){
+        st.input = "";
+        st.result = null;
+        st.mc = null;
+        st.mcPicked = null;
+        st.phase = "question";
+
+        if (st.isRequeue){
+          if (st.reqIdx + 1 < st.requeue.length) st.reqIdx++;
+          else {
+            // requeue finished
+            st.isRequeue = false;
+            st.idx = st.primaryQueue.length; // completion
+          }
+        }else{
+          if (st.idx + 1 < st.primaryQueue.length) st.idx++;
+          else if (st.requeue.length){
+            st.isRequeue = true;
+            st.reqIdx = 0;
+          }else{
+            st.idx = st.primaryQueue.length;
+          }
+        }
+        refresh();
+      }
+
+      function doCheckTyped(){
+        const card = currentCard();
+        if (!card) return;
+
+        // determine mode for checking
+        let mode = card.adaptiveMode || "typed";
+        const threshold = card.adaptiveThreshold ?? 3;
+        const wrongs = card.wrongCount || 0;
+        if (mode === "typed" && wrongs >= threshold){
+          mode = decideAdaptiveMode(card); // cloze or mc
+        }
+        if (mode === "mc") return; // mc uses buttons
+
+        const input = ansInput.value.trim();
+        if (!input) return;
+
+        st.input = input;
+
+        const ans = (mode === "cloze") ? makeCloze(card.back).answer : card.back;
+        st.result = checkAnswer(input, ans);
+        st.phase = "revealed";
+        refresh();
+      }
+
+      function rateWithLabel(label, quality){
+        const card = currentCard();
+        if (!card) return;
+
+        // result correctness for counters
+        const ok = quality >= 3;
+
+        // update SM-2
+        const newCard = sm2(card, quality);
+
+        // wrong tracking: if user pressed Again/Hard or result was wrong, count as wrong attempt
+        // (Your request: "if I get typed response wrong it switches after 3 times" → we increment wrongCount when result was wrong/close OR label is again/hard)
+        const wasWrong = (st.result === "wrong"); // close doesn't count as full wrong; change if you want
+        if (wasWrong || label==="again" || label==="hard"){
+          newCard.wrongCount = (card.wrongCount||0) + 1;
+        } else if (quality >= 4){
+          newCard.wrongCount = 0;
+        } else {
+          newCard.wrongCount = card.wrongCount || 0;
+        }
+
+        // update adaptive mode if threshold reached
+        const threshold = newCard.adaptiveThreshold ?? 3;
+        if ((newCard.wrongCount||0) >= threshold){
+          newCard.adaptiveMode = decideAdaptiveMode(newCard); // "cloze" or "mc"
+        } else {
+          newCard.adaptiveMode = "typed";
+        }
+
+        // persist
+        updateData(d=>{
+          for (const did in d.decks){
+            const ci = d.decks[did].cards.findIndex(c=>c.id===card.id);
+            if (ci>=0){ d.decks[did].cards[ci] = newCard; break; }
+          }
+          const t = st.today;
+          if (!d.stats[t]) d.stats[t] = {reviewed:0,correct:0,wrong:0};
+          d.stats[t].reviewed += 1;
+          if (ok) d.stats[t].correct += 1; else d.stats[t].wrong += 1;
+        });
+
+        // short-term repeat
+        const delay = computeLearningDelayMs(label);
+        if (delay > 0){
+          st.learning.push({ card: {...newCard, deckId: card.deckId}, dueTimeMs: nowMs() + delay });
+        }
+
+        // session counters
+        st.sess.total += 1;
+        st.sess.correct += ok ? 1 : 0;
+        st.sess.wrong += ok ? 0 : 1;
+
+        // optional end-of-session requeue for "again"
+        if (label === "again"){
+          st.sess.requeues += 1;
+          st.requeue.push({...newCard, deckId: card.deckId});
+        }
+
+        // remove learning slot if this card came from learning
+        if (st.__learningPick >= 0){
+          st.learning.splice(st.__learningPick, 1);
+          st.__learningPick = -1;
+        }
+
+        advance();
+      }
+
+      // handlers
+      checkBtn.onclick = doCheckTyped;
+      ansInput.onkeydown = (e)=>{ if (e.key === "Enter") doCheckTyped(); };
+
+      document.querySelectorAll("[data-rate]").forEach(btn=>{
+        btn.onclick = ()=>{
+          const id = btn.dataset.rate;
+          if (id==="again") rateWithLabel("again", 0);
+          if (id==="hard")  rateWithLabel("hard",  1);
+          if (id==="good")  rateWithLabel("good",  3);
+          if (id==="easy")  rateWithLabel("easy",  4);
+          if (id==="mastered") rateWithLabel("mastered", 5);
+        };
+      });
+
+      // auto-refresh so minute-repeat pops in as soon as it is due
+      setInterval(()=>{ if (st.phase==="question") refresh(); }, 1000);
+
+      refresh();
+    }
+
+    /******************************************************************
+     * UTIL
+     ******************************************************************/
+    function escapeHTML(s){
+      return String(s||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    /******************************************************************
+     * BOOT
+     ******************************************************************/
+    render();
+  </script>
+</body>
+</html>
