@@ -186,13 +186,8 @@
     const BASE_DAILY_GOAL = 150;
 
     function nowMs(){ return Date.now(); }
-    function getCarryoverLimit(refDate = new Date()){
-      const y = new Date(refDate);
-      y.setDate(y.getDate()-1);
-      const ystr = y.toISOString().slice(0,10);
-      const yStats = DATA.stats[ystr] || {reviewed:0};
-      const missed = Math.max(0, BASE_DAILY_GOAL - (yStats.reviewed||0));
-      return BASE_DAILY_GOAL + missed;
+    function getCarryoverLimit(){
+      return BASE_DAILY_GOAL;
     }
 
     function isDue(card){
@@ -694,7 +689,8 @@
 
     function dailyProgressHTML(){
       const today = todayStr();
-      const st = DATA.stats[today] || {reviewed:0,correct:0,wrong:0};
+      const hasDecks = Object.keys(DATA.decks).length > 0;
+      const st = hasDecks ? (DATA.stats[today] || {reviewed:0,correct:0,wrong:0}) : {reviewed:0,correct:0,wrong:0};
       const goal = getCarryoverLimit();
       const pct = Math.min(100, Math.round((st.reviewed/goal)*100));
       const acc = st.reviewed>0 ? Math.round((st.correct/st.reviewed)*100) : 0;
@@ -1146,7 +1142,12 @@ or paragraphs — auto-detects format."></textarea>
         });
 
         deckPanel.querySelector("#deleteDeckBtn").onclick = ()=>{
-          updateData(d=>{ delete d.decks[selected]; });
+          updateData(d=>{
+            delete d.decks[selected];
+            if (!Object.keys(d.decks).length){
+              d.stats[todayStr()] = {reviewed:0,correct:0,wrong:0};
+            }
+          });
           selected = null;
           editingCardId = null;
         };
@@ -1337,7 +1338,8 @@ or paragraphs — auto-detects format."></textarea>
      ******************************************************************/
     function studyHTML(){
       const today = todayStr();
-      const st = DATA.stats[today] || {reviewed:0,correct:0,wrong:0};
+      const hasDecks = Object.keys(DATA.decks).length > 0;
+      const st = hasDecks ? (DATA.stats[today] || {reviewed:0,correct:0,wrong:0}) : {reviewed:0,correct:0,wrong:0};
       const goal = getCarryoverLimit();
       const primaryQueue = buildInterleavedQueue(DATA.decks, goal, st.reviewed);
 
